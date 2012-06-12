@@ -1173,7 +1173,7 @@ sagenb.worksheetapp.worksheet = function() {
 				worksheet_name_input_handler(e);
 			}
 		});
-		
+
 		////////// TYPESETTING CHECKBOX //////////
 		$("#typesetting_checkbox").change(function(e) {
 			this_worksheet.set_pretty_print($("#typesetting_checkbox").prop("checked"));
@@ -1181,7 +1181,25 @@ sagenb.worksheetapp.worksheet = function() {
 			// update
 			this_worksheet.worksheet_update();
 		});
-		
+
+        ////////// LINE NUMBERS CHECKBOX //////////
+		$("#line_numbers_checkbox").change(function(e) {
+            if ($("#line_numbers_checkbox").prop("checked")) {
+                $.each(this_worksheet.cells, function(index, cell) {
+                    // for some reason there are undefined cells in the cells list
+                    if (cell != null && cell.is_evaluate_cell) {
+                        cell.codemirror.setOption("lineNumbers", true);
+                    }
+                });
+            } else {
+                $.each(this_worksheet.cells, function(index, cell) {
+                    if (cell != null && cell.is_evaluate_cell) {
+                        cell.codemirror.setOption("lineNumbers", false);
+                    }
+                });
+            }
+		});
+
 		////////// EVALUATION ///////////
 		$("#evaluate_all_cells").click();
 		$("#interrupt").click();
