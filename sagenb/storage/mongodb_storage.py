@@ -26,7 +26,7 @@ def is_safe(a):
 
 
 class MongoDBDatastore(Datastore):
-    def __init__(self, database):
+    def __init__(self, database, path):
         """
         INPUT:
 
@@ -36,10 +36,10 @@ class MongoDBDatastore(Datastore):
         self._db = database
         
         
-        #path = os.path.abspath(path)
-        #self._path = path
-        #self._makepath(os.path.join(self._path, 'home'))
-        #self._home_path = 'home'
+        path = os.path.abspath(path)
+        self._path = path
+        self._makepath(os.path.join(self._path, 'home'))
+        self._home_path = 'home'
         #self._conf_filename = 'conf.pickle'
         #self._users_filename = 'users.pickle'
 
@@ -268,8 +268,16 @@ class MongoDBDatastore(Datastore):
         # self._permissions('users.pickle')
         
         self._db.users.drop()
-        for user in users.values():
-            self._db.users.insert(user.basic())
+        for username, user in users.iteritems():
+            b = user.basic()
+
+            # turn sets into lists
+            # for some reason mongodb doesn't like sets
+            for k, v in b.iteritems():
+                if isinstance(v, set):
+                    b[k] = list(v)
+
+            self._db.users.save(b)
         
     def load_user_history(self, username):
         """
@@ -288,7 +296,11 @@ class MongoDBDatastore(Datastore):
         #    return []
         #return self._load(filename)
         
-        
+        d = self._db.userhistorylogs.find_one({"username": username})
+        if d:
+            return d["log"]
+        else:
+            return []
 
     def save_user_history(self, username, history):
         """
@@ -300,9 +312,16 @@ class MongoDBDatastore(Datastore):
 
             - ``history`` -- list of strings
         """
-        filename = self._history_filename(username)
-        self._save(history, filename)
-        self._permissions(filename)
+        #filename = self._history_filename(username)
+        #self._save(history, filename)
+        #self._permissions(filename)
+        
+        d = self._db.userhistorylogs.find_one({"username": username})
+        if d:
+            # do update
+            self._db.userhistorylogs.update({"username": username}, {"$set": {"log": history}})
+        else:
+            self._db.userhistorylogs.insert({"username": username, "log": history})
         
     def save_worksheet(self, worksheet, conf_only=False):
         """
