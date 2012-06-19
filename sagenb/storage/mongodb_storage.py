@@ -35,13 +35,12 @@ class MongoDBDatastore(Datastore):
         """
         self._db = database
         
-        
         path = os.path.abspath(path)
         self._path = path
         self._makepath(os.path.join(self._path, 'home'))
         self._home_path = 'home'
-        #self._conf_filename = 'conf.pickle'
-        #self._users_filename = 'users.pickle'
+        self._conf_filename = 'conf.pickle'
+        self._users_filename = 'users.pickle'
 
     def __repr__(self):
         return "MongoDB Sage Notebook Datastore on %(host)s:%(port)i in database %(database)s" % {"host": self._db.connection.host, "port": self._db.connection.port, "database": self._db.name}
@@ -197,7 +196,7 @@ class MongoDBDatastore(Datastore):
         # it is probably not great to drop a whole collection
         # it would be nicer to do an update instead
         self._db.conf.drop()
-        self._db.conf.insert(basic)
+        self._db.conf.save(basic)
 
     def load_openid(self):
         """
@@ -213,7 +212,7 @@ class MongoDBDatastore(Datastore):
         # self._save(openid_dict, 'openid.pickle')
         # self._permissions('openid.pickle')
         self._db.openid.drop()
-        self._db.conf.insert(openid_dict)
+        self._db.conf.save(openid_dict)
 
     def load_users(self, user_manager):
         """
@@ -345,14 +344,18 @@ class MongoDBDatastore(Datastore):
         basic = self._worksheet_to_basic(worksheet)
         if not hasattr(worksheet, '_last_basic') or worksheet._last_basic != basic:
             # only save if changed
-            self._save(basic, self._worksheet_conf_filename(username, id_number))
+            # self._save(basic, self._worksheet_conf_filename(username, id_number))
+            self._db.worksheets.update({"username": username, "id_number": id_number}, {"$set": basic})
             worksheet._last_basic = basic
         if not conf_only and worksheet.body_is_loaded():
             # only save if loaded
             # todo -- add check if changed
-            filename = self._worksheet_html_filename(username, id_number)
-            with open(self._abspath(filename),'w') as f:
-                f.write(worksheet.body().encode('utf-8', 'ignore'))
+            
+            # filename = self._worksheet_html_filename(username, id_number)
+            # with open(self._abspath(filename),'w') as f:
+                # f.write(worksheet.body().encode('utf-8', 'ignore'))
+            
+            self._db.worksheets.update({"username": username, "id_number": id_number}, {"$set": {"body": worksheet.body().encode('utf-8', 'ignore')}})
 
     def create_worksheet(self, username, id_number):
         """
@@ -370,11 +373,15 @@ class MongoDBDatastore(Datastore):
 
             - a worksheet
         """
-        filename = self._worksheet_html_filename(username, id_number)
-        html_file = self._abspath(filename)
-        if os.path.exists(html_file):
-            raise ValueError("Worksheet %s/%s already exists"%(username, id_number))
+        #filename = self._worksheet_html_filename(username, id_number)
+        #html_file = self._abspath(filename)
+        #if os.path.exists(html_file):
+        #    raise ValueError("Worksheet %s/%s already exists"%(username, id_number))
 
+        w = self._db.worksheets.find_one({"username": username, "id_number": id_number})
+        if w:
+            raise ValueError("Worksheet %s/%s already exists"%(username, id_number))
+        
         # We create the worksheet
         W = self._basic_to_worksheet({'owner':username, 'id_number':id_number})
         W.clear()
@@ -399,31 +406,26 @@ class MongoDBDatastore(Datastore):
         """
         # Prevent arbitrary directories from being created by
         # self.__worksheet_html_filename
-        dirname = self._worksheet_pathname(username, id_number)
-        if not os.path.exists(dirname):
+        #dirname = self._worksheet_pathname(username, id_number)
+        #if not os.path.exists(dirname):
+        #    raise ValueError("Worksheet %s/%s does not exist"%(username, id_number))
+        
+        #filename = self._worksheet_html_filename(username, id_number)
+        #html_file = self._abspath(filename)
+        #if not os.path.exists(html_file):
+        #    raise ValueError("Worksheet %s/%s does not exist"%(username, id_number))
+        
+        basic = self._db.worksheets.find_one({"username": username, "id_number": id_number})
+        if not basic:
             raise ValueError("Worksheet %s/%s does not exist"%(username, id_number))
         
-        filename = self._worksheet_html_filename(username, id_number)
-        html_file = self._abspath(filename)
-        if not os.path.exists(html_file):
-            raise ValueError("Worksheet %s/%s does not exist"%(username, id_number))
+        #basic = self._load(self._worksheet_conf_filename(username, id_number))
 
-        try:
-            basic = self._load(self._worksheet_conf_filename(username, id_number))
-            basic['owner'] = username
-            basic['id_number'] = id_number
-            W = self._basic_to_worksheet(basic)
-            W._last_basic = basic   # cache
-        except Exception:
-            #the worksheet conf loading didn't work, so we make up one
-            import traceback
-            print "Warning: problem loading config for %s/%s; using default config: %s"%(username, id_number, traceback.format_exc())
-            W = self._basic_to_worksheet({'owner':username, 'id_number': id_number})
-            if username=='_sage_':
-                # save the default configuration, since this may be loaded by a random other user
-                # since *anyone* looking at docs will load all _sage_ worksheets
-                print "Saving default configuration (overwriting corrupt configuration) for %s/%s"%(username, id_number)
-                self.save_worksheet(W, conf_only=True)
+        basic['owner'] = username
+        basic['id_number'] = id_number
+        W = self._basic_to_worksheet(basic)
+        W._last_basic = basic   # cache
+
         return W
 
 
@@ -450,6 +452,8 @@ class MongoDBDatastore(Datastore):
             if basic.has_key(k):
                 del basic[k]
                 
+        # this is some pickling magic
+        # because this is how the file format works it wasn't changed
         self._save(basic, self._worksheet_conf_filename(username, id_number) + '2')
         tmp = self._abspath(self._worksheet_conf_filename(username, id_number) + '2')
         T.add(tmp, os.path.join('sage_worksheet','worksheet_conf.pickle'))
@@ -479,7 +483,7 @@ class MongoDBDatastore(Datastore):
         if os.path.exists(data):
             for X in os.listdir(data):
                 T.add(os.path.join(data, X), os.path.join('sage_worksheet','data',X))
-                    
+
         # Add the contents of each of the cell directories.
         cells = os.path.join(path, 'cells')
         if os.path.exists(cells):
@@ -596,17 +600,18 @@ class MongoDBDatastore(Datastore):
             sage: DS.worksheets('sageuser')
             [sageuser/2: [Cell 0: in=, out=]]
         """
-        path = self._abspath(self._user_path(username))
-        if not os.path.exists(path): return []
-        v = []
-        for id_number in os.listdir(path):
-            if id_number.isdigit():
-                try:
-                    v.append(self.load_worksheet(username, int(id_number)))
-                except Exception:
-                    import traceback
-                    print "Warning: problem loading %s/%s: %s"%(username, id_number, traceback.format_exc())
-        return v
+        #path = self._abspath(self._user_path(username))
+        #if not os.path.exists(path): return []
+        #v = []
+        #for id_number in os.listdir(path):
+        #    if id_number.isdigit():
+        #        try:
+        #            v.append(self.load_worksheet(username, int(id_number)))
+        #        except Exception:
+        #            import traceback
+        #            print "Warning: problem loading %s/%s: %s"%(username, id_number, traceback.format_exc())
+        #return v
+        
 
     def delete(self):
         """
@@ -615,6 +620,8 @@ class MongoDBDatastore(Datastore):
         """
         import shutil
         shutil.rmtree(self._path, ignore_errors=True)
+        
+        self._db.connection.drop_database(self._db)
 
 
 

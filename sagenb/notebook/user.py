@@ -81,7 +81,7 @@ class User(object):
             return self.history
         except AttributeError:
             import misc   # late import
-            if misc.notebook is None: return []       
+            if misc.notebook is None: return []
             history_file = "%s/worksheets/%s/history.sobj"%(misc.notebook.directory(), self._username)
             if os.path.exists(history_file):
                 try:
@@ -91,7 +91,7 @@ class User(object):
                     self.history = []
             else:
                 self.history = []
-            return self.history    
+            return self.history
 
     def save_history(self):
         if not hasattr(self, 'history'):
