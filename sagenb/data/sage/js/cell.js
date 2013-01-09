@@ -401,17 +401,22 @@ sagenb.worksheetapp.cell = function(id) {
 		if($output_cell.find(".math").length > 0 ||
 		   $output_cell.find("script[type='math/tex']").length > 0) {
 			/* \( \) is for inline and \[ \] is for block mathjax */
+			/* script[type='math/tex'] is for older versions of Sage */
 			
 			if($output_cell.contents().length === 1) {
 				// only one piece of math, make it big
 				/* using contents instead of children guarantees that we
 				 * get all other types of nodes including text and comments.
 				 */
-				$output_cell.html("\\[" + $output_cell.find("script[type='math/tex']").html() + "\\]");
+				if ($output_cell.find(".math").length > 0) {
+					$output_cell.html("\\[" + $output_cell.find(".math").html() + "\\]");
+				} else {
+					$output_cell.html("\\[" + $output_cell.find("script[type='math/tex']").html() + "\\]");
+				}
 			}
 			else {
 				// NOTE: these may be obsolete
-
+				
 				// mathjax each span with \( \)
 				$output_cell.find("span.math").each(function(i, element) {
 					$(element).html("\\(" + $(element).html() + "\\)");
