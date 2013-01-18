@@ -18,7 +18,7 @@
 		doLoad("/data/mathjax-MathJax-07669ac/MathJax.js" + mathjax_config);
 	} else {
 		// we aren't running localhost
-		doLoad("http://cdn.mathjax.org/mathjax/latest/MathJax.js" + mathjax_config);
+		doLoad("//cdn.mathjax.org/mathjax/latest/MathJax.js" + mathjax_config);
 		if(typeof MathJax === undefined) {
 			// CDN failed, load from notebook server
 			doLoad("/data/mathjax-MathJax-07669ac/MathJax.js" + mathjax_config);
