@@ -27,8 +27,9 @@ sagenb.worksheetlistapp.list_row = function() {
 				'<td class="owner_cell"></td>' + 
 				'<td class="last_edit_cell"></td>' + 
 			'</tr>');
-		
-		_this.jquery_this = $("#row_" + _this.props.filename.replace("/", "_"));
+	
+		//TODO possibly needs escaping more special characters, that would be those allowed in user names	
+		_this.jquery_this = $("#row_" + _this.props.filename.replace("/", "_").replace(".","\\."));
 		
 		// checkbox
 		if(_this.list.published_mode) {

@@ -81,11 +81,11 @@ sagenb.worksheetapp.cell = function(id) {
 			
 			// it doesn't seem right to have a different property here
 			// it seems like X.output is sufficient
-			if($.trim(X.output_html) !== "") {
-				_this.output = X.output_html;
-			}
 			if($.trim(X.output_wrapped) !== "") {
 				_this.output = X.output_wrapped;
+			}
+			if($.trim(X.output_html) !== "") {
+				_this.output += X.output_html;
 			}
 					
 			_this.is_evaluate_cell = (X.type === "evaluate") ? true : false;
@@ -944,11 +944,11 @@ sagenb.worksheetapp.cell = function(id) {
 					
 					// it doesn't seem right to have a different property here
 					// it seems like X.output is sufficient
-					if($.trim(X.output_html) !== "") {
-						_this.output = X.output_html;
-					}
 					if($.trim(X.output_wrapped) !== "") {
 						_this.output = X.output_wrapped;
+					}
+					if($.trim(X.output_html) !== "") {
+						_this.output += X.output_html;
 					}
 					
 					// render to the DOM
